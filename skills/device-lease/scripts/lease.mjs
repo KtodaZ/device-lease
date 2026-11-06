@@ -112,14 +112,14 @@ export class LeaseStore {
   now() { return this.operationNow; }
   assertNoLegacy() {
     const { legacyLocks } = inspectRoot(this.root);
-    if (legacyLocks.length) fail('LEGACY_STATE', 'Legacy lock files exist. Stop all old clients and follow the migration instructions.', { legacyLocks });
+    if (legacyLocks.length) fail('LEGACY_STATE', 'Conflicting lock entries exist in the state root. Identify the other lease clients and resolve the conflict before continuing.', { legacyLocks });
   }
   row(device) { return this.db.prepare('SELECT * FROM leases WHERE device=?').get(device); }
   reserve({ device, owner = 'agent', purpose, idleTimeoutMinutes }) {
     text(device, 'device', 512); text(owner, 'owner', 256); text(purpose, 'purpose');
     const ttl = idleTimeoutMinutes === undefined ? this.ttl : integer(idleTimeoutMinutes, 'idleTimeoutMinutes', 1, 1440) * 60_000;
     return this.transaction(() => {
-      // Fail closed even for stale legacy locks: old writers must be retired, not auto-migrated.
+      // Fail closed on lock entries used by conflicting lease implementations, even if stale.
       this.assertNoLegacy();
       const now = this.now();
       const current = this.row(device);

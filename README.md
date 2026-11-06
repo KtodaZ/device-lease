@@ -14,7 +14,7 @@
   <a href="#install">Install</a> ·
   <a href="docs/configuration.md">Configure</a> ·
   <a href="docs/remote-hosts.md">VMs &amp; SSH</a> ·
-  <a href="docs/operations.md">Safety &amp; migration</a>
+  <a href="docs/operations.md">Safety &amp; troubleshooting</a>
 </p>
 
 Two agents, one emulator: one is testing a screen while the other launches an app. Device Lease gives cooperating agents a way to reserve the device, keep the lease alive, and hand it back when they're done.
@@ -39,7 +39,7 @@ Agent A releases          → ready for the next agent
 Requires **Node.js 22.13+ on 22.x, or 23.4+**. A current supported LTS is recommended.
 
 > [!IMPORTANT]
-> All clients sharing a device must use **one host, one OS account, and one local state directory**. Leases are advisory: they do not block device access or stop a previous holder's app. Already using the older directory-based tool? [Migrate first](docs/operations.md#migrating-older-directory-based-leases).
+> All clients sharing a device must use **one host, one OS account, and one local state directory**. Leases are advisory: they do not block device access or stop a previous holder's app.
 
 Clone the repo and check your setup:
 
@@ -79,7 +79,7 @@ Skill selection is advisory. For a team-wide rule, add the [standing instruction
 | [CLI and skill setup](docs/usage.md) | Reserve, renew, release, token handling, PATH setup, and upgrades. |
 | [Configuration](docs/configuration.md) | Device aliases, strict pools, timeouts, history, and environment overrides. |
 | [Remote hosts and VMs](docs/remote-hosts.md) | Shared-host setups and the restricted SSH adapter. |
-| [Safety and migration](docs/operations.md) | Expiry, clock recovery, storage limits, exit codes, and the old lease format. |
+| [Safety and troubleshooting](docs/operations.md) | Expiry, clock recovery, storage limits, exit codes, and conflicting lease tools. |
 | [Contributing](docs/contributing.md) | Tests, validation, bug reports, and distribution. |
 
 For a device inside one VM, run the CLI inside that VM. When several VMs share a host's devices, run all lease commands on that host. **Never put the database on NFS, SMB, VM shared folders, or a synced/cloud-storage directory.** See the [remote-host guide](docs/remote-hosts.md) before setting up shared access.

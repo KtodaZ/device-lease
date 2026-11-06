@@ -6,7 +6,7 @@ Run these commands from your cloned checkout. No marketplace, MCP server, daemon
 
 ## Quick start
 
-Requires **Node.js 22.13+ on 22.x, or 23.4+**. A current supported LTS is recommended. SQLite is built into Node; some older releases print an experimental SQLite warning on stderr. JSON results remain on stdout.
+Requires **Node.js 22.13+ on 22.x, or 23.4+**. A current supported LTS is recommended. SQLite is built into Node; some Node.js versions print an experimental SQLite warning on stderr. JSON results remain on stdout.
 
 ```sh
 git clone https://github.com/KtodaZ/device-lease.git
@@ -26,7 +26,7 @@ node skills/device-lease/scripts/cli.mjs release --device emulator-5554 --messag
 
 Alternatively, pipe the token into `--token-stdin`. Do not paste literal tokens into command arguments on shared hosts: arguments may appear in process listings. Tokens authorize lease changes independently of the display owner or agent session. `status` never reveals tokens, and only token hashes are persisted.
 
-For an optional command on PATH, run `npm install --global .` from this checkout. This links to the checkout, so keep it at its installed path and update it only while clients are stopped. First check `command -v device-lease` (`Get-Command device-lease` in PowerShell); do not overwrite an existing implementation until migration is complete. Direct `node` usage and skill installation work without a global npm install.
+For an optional command on PATH, run `npm install --global .` from this checkout. This links to the checkout, so keep it at its installed path and update it only while clients are stopped. First check `command -v device-lease` (`Get-Command device-lease` in PowerShell); do not overwrite an existing implementation while other clients are using it. Direct `node` usage and skill installation work without a global npm install.
 
 ## Install the skill
 

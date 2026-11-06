@@ -48,7 +48,7 @@ python3 /path/to/skill-creator/scripts/quick_validate.py skills/device-lease
 
 For documentation-only changes, check the wording, commands, and links. You do not need to install skill-creator or run the runtime test suite.
 
-Tests use disposable directories and synthetic IDs; no emulator, simulator, or real lease is touched. They cover separate-process contention, token fencing, expiry boundaries, crash rollback, config precedence, permissions, legacy detection, JSON errors, and skill installation. CI runs macOS and Linux across Node 22.13, Node 24, and the current release; Windows CI covers CLI/config/install behavior too.
+Tests use disposable directories and synthetic IDs; no emulator, simulator, or real lease is touched. They cover separate-process contention, token fencing, expiry boundaries, crash rollback, config precedence, permissions, conflicting-lock detection, JSON errors, and skill installation. CI runs macOS and Linux across Node 22.13, Node 24, and the current release; Windows CI covers CLI/config/install behavior too.
 
 ## License and reporting issues
 

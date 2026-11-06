@@ -16,15 +16,11 @@ With `--json`, stdout contains one JSON result including `ok`, or an error conta
 | 2 | Device busy |
 | 3 | Lease lost: absent, expired, or token mismatch |
 | 64 | Usage or config error |
-| 70 | Runtime, storage, migration, or safety error |
+| 70 | Runtime, storage, or safety error |
 | 75 | Database busy; ownership cannot be confirmed, so stop device interactions |
 
-## Migrating older directory-based leases
+## Conflicting lease tools
 
-This is a new protocol and is not wire-compatible with the earlier directory-lock implementation.
+All clients sharing a device must use the same lease tool and state root. Separate tools can each grant a lease for the same device without knowing about the other.
 
-1. Stop **every** old client, including repository wrappers, scheduled jobs, and agents using other state roots. Finish their device work and release reservations with the old CLI.
-2. Back up the old state. Once no reservations remain, move the old state directory aside. Preserve handoffs for reference; do not copy tokens or lock entries into the new directory.
-3. Agree on one new local root and canonical ID mapping, then update all clients together. Run `init`, `doctor`, and a reserve/heartbeat/release smoke test with an unused example ID before real use.
-
-The new CLI rejects `.lock` entries on reserve, heartbeat, and status even when stale; token-authorized release remains available. Old roots with 0755 permissions fail earlier with `UNSAFE_ROOT`; move the retired root aside and let the new CLI create a private one. The old tool may use a Git-common directory unless its environment overrides the root. These guards cannot detect clients on a different root or prevent old clients from starting later. Never mix protocols. This repository does not modify your existing installation automatically.
+A `LEGACY_STATE` error means the configured state root contains `.lock` entries used by another lease implementation. Reserve, heartbeat, and status stop on these conflicts; token-authorized release remains available. Identify the clients involved and resolve their reservations before continuing. Do not delete lock entries to bypass the error. The CLI cannot detect another tool using a different state root.

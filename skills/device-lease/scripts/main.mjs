@@ -12,7 +12,7 @@ Requires Node.js >=22.13. Local filesystem, one OS account, one state root.
 
 Commands:
   init       Write a starter config without overwriting an existing file
-  doctor     Check state permissions, SQLite integrity, and legacy locks
+  doctor     Check state permissions, SQLite integrity, and conflicting locks
   reserve    --device <canonical-ID-or-alias> --purpose <text> [--owner <label>]
   heartbeat  --device <ID-or-alias> [--message <text>] + token
   release    --device <ID-or-alias> [--message <handoff>] + token
@@ -105,7 +105,7 @@ async function main() {
         const legacyLocks = store.rootInfo.legacyLocks;
         result = { state: 'doctor', root: config.root, config: config.configPath, node: process.version, schemaVersion: 1, integrity, filesystemType: store.rootInfo.filesystemType,
           legacyLocks, warnings: [...(store.clockWarning ? [store.clockWarning] : []), 'Filesystem-type rejection is Linux-only (plus Windows UNC rejection). Confirm that state is on a local, non-synced disk.', 'Leases are advisory; all clients must use this exact root and canonical IDs.'] };
-        if (legacyLocks.length) fail('LEGACY_STATE', 'Legacy lock files exist. Do not use the new CLI until all old writers have been retired.', result);
+        if (legacyLocks.length) fail('LEGACY_STATE', 'Conflicting lock entries exist in the state root. Identify the other lease clients and resolve the conflict before continuing.', result);
       }
     } finally { store.close(); }
   }
