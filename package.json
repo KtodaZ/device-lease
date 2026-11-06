@@ -8,5 +8,5 @@
   "engines": { "node": "^22.13.0 || >=23.4.0" },
   "bin": { "device-lease": "skills/device-lease/scripts/cli.mjs" },
   "scripts": { "test": "node --test test/*.test.mjs", "install-skill": "node scripts/install-skill.mjs" },
-  "files": ["skills", "scripts/install-skill.mjs", "scripts/ssh-lease.mjs", "README.md", "LICENSE"]
+  "files": ["docs", "skills", "scripts/install-skill.mjs", "scripts/ssh-lease.mjs", "README.md", "LICENSE"]
 }
