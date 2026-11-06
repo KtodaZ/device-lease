@@ -84,4 +84,8 @@ Skill selection is advisory. For a team-wide rule, add the [standing instruction
 
 For a device inside one VM, run the CLI inside that VM. When several VMs share a host's devices, run all lease commands on that host. **Never put the database on NFS, SMB, VM shared folders, or a synced/cloud-storage directory.** See the [remote-host guide](docs/remote-hosts.md) before setting up shared access.
 
+## Contributions welcome
+
+Got a fix or an improvement? [Send a pull request](docs/contributing.md). Don't like it? [Fork it](https://github.com/KtodaZ/device-lease/fork) and make it your own.
+
 [MIT license](LICENSE) · [Report a bug](https://github.com/KtodaZ/device-lease/issues) · [Report a vulnerability privately](https://github.com/KtodaZ/device-lease/security/advisories/new)
