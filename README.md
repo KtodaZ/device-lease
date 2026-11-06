@@ -98,7 +98,7 @@ The heartbeat example expects token input through redirected stdin or a pipe; it
 
 ### Restricted SSH access
 
-An optional `scripts/ssh-lease.mjs` adapter accepts JSON requests through OpenSSH's `SSH_ORIGINAL_COMMAND`. It never evaluates remote shell text, permits only lease commands and their relevant fields, fixes the config on the host, and strips lease-setting environment overrides. Heartbeat/release read their token from stdin. It cannot initialize config, change the root, or execute device-control commands.
+An optional `scripts/ssh-lease.mjs` adapter accepts JSON requests through OpenSSH's `SSH_ORIGINAL_COMMAND`. It never evaluates remote shell text, permits only lease commands and their relevant fields, fixes the config on the host, and strips lease-setting environment overrides. Configure a nonempty device pool with `strictDevices:true` for this endpoint so clients cannot create arbitrary device rows. Heartbeat/release read their token from stdin. It cannot initialize config, change the root, or execute device-control commands.
 
 A host administrator can provision a dedicated account, initialize its local config/state, and restrict each authorized key with an entry shaped like this (replace paths and the public key):
 
@@ -120,7 +120,7 @@ If a reserve reply is lost, the claim remains until expiry; inspect status and w
 
 ## Safety and failure behavior
 
-SQLite write transactions serialize reserve, heartbeat, and release, including recovery after a killed process. Contending database operations wait up to five seconds, then return `DB_BUSY` if still blocked. A device with an unexpired lease returns `BUSY`; there is no automatic wait for the device to become free, takeover, or force-release command. Expired leases can be replaced. An old token cannot renew or release a replacement lease. Release and its handoff commit atomically. After clock rollback, effective lease time freezes at the last stored time until the clock catches up; `doctor` and `status` warn, while holders can still renew/release. This can delay expiry. Clock jumps forward can expire leases early.
+SQLite write transactions serialize reserve, heartbeat, and release, including recovery after a killed process. Contending database operations wait up to five seconds, then return `DB_BUSY` if still blocked. A device with an unexpired lease returns `BUSY`; there is no automatic wait for the device to become free, takeover, or force-release command. Expired leases can be replaced. An old token cannot renew or release a replacement lease. Release and its handoff commit atomically. When clock rollback is detected, remaining expiry is capped to one stored TTL on the corrected clock and already-expired leases stay expired. The correction commits even when a claim returns `BUSY`, so abandoned leases cannot stay stuck at a bogus future date. The detecting command's status/doctor output warns; holders can still renew/release. Clock jumps forward can expire leases early. Recorded acquisition/activity timestamps reflect the host clock at the time they were written.
 
 Leases are **advisory coordination for trusted agents**, not a security boundary or a device-control proxy. A lease does not prevent another program from accessing a device. Expiry does not stop an emulator, an app, a previous holder, or a long-running test. Heartbeat before interactions and during lengthy operations; stop on a failed heartbeat. The CLI never boots, shuts down, erases, installs, or uninstalls devices.
 

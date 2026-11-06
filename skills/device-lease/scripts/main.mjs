@@ -99,7 +99,7 @@ async function main() {
       else if (command === 'status') result = store.status(device);
       else if (command === 'history') result = { state: 'history', device, handoffs: store.history(device) };
       else {
-        store.now();
+        store.transaction(() => store.now());
         const integrity = store.db.prepare('PRAGMA quick_check').get().quick_check;
         if (integrity !== 'ok') fail('CORRUPT_STATE', 'SQLite integrity check failed; stop all clients before restoring state.');
         const legacyLocks = store.rootInfo.legacyLocks;

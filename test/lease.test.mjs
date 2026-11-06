@@ -75,7 +75,7 @@ test('TTL boundary, reclaim, and old-token fencing', t => {
   assert.equal(store.heartbeat({device:'phone',token:second.token}).state,'heartbeat');
 });
 
-test('heartbeat extends persisted TTL; clock rollback freezes expiry while allowing release', t => {
+test('heartbeat extends persisted TTL; clock rollback bounds expiry and allows release', t => {
   const {store, advance} = storeFixture(t, {idleTimeoutMinutes: 1});
   const first = store.reserve({device:'phone',purpose:'test'});
   advance(50_000);
@@ -85,8 +85,32 @@ test('heartbeat extends persisted TTL; clock rollback freezes expiry while allow
   assert.match(store.status().warnings[0], /clock moved backwards/);
   assert.equal(store.status().leases[0].state, 'reserved');
   assert.throws(() => store.reserve({device:'phone',purpose:'test'}), e => e.code === 'BUSY');
-  assert.equal(store.heartbeat({device:'phone',token:first.token}).lease.expiresAt,beat.lease.expiresAt);
+  assert.equal(store.heartbeat({device:'phone',token:first.token}).lease.expiresAt,beat.lease.expiresAt-1);
   assert.equal(store.release({device:'phone',token:first.token}).state,'released');
+});
+
+test('forward spike then correction cannot wedge abandoned or new lease expiry', t => {
+  const {store,advance}=storeFixture(t,{idleTimeoutMinutes:1});
+  const year=365*24*60*60*1000;
+  advance(year);
+  store.reserve({device:'abandoned',purpose:'bad RTC'});
+  advance(-year);
+  // Correction must persist even when this request fails BUSY.
+  assert.throws(()=>store.reserve({device:'abandoned',purpose:'retry'}), e=>e.code==='BUSY');
+  store.reserve({device:'new',purpose:'corrected clock'});
+  advance(60_000);
+  assert.equal(store.reserve({device:'abandoned',purpose:'recovered'}).reclaimed,true);
+  assert.equal(store.reserve({device:'new',purpose:'recovered'}).reclaimed,true);
+});
+
+test('clock correction cannot revive a lease already expired on the old clock', t => {
+  const {store,advance}=storeFixture(t,{idleTimeoutMinutes:1});
+  const claim=store.reserve({device:'phone',purpose:'test'});
+  advance(60_000);
+  assert.equal(store.status().leases[0].state,'expired');
+  advance(-30_000);
+  assert.throws(()=>store.heartbeat({device:'phone',token:claim.token}),lost);
+  assert.equal(store.status().leases[0].state,'expired');
 });
 
 test('release handoffs are atomic and bounded', t => {
@@ -198,7 +222,7 @@ test('zero history limit disables new handoffs without wiping existing history',
   try {
     const next=store.reserve({device:'phone',purpose:'test'});
     store.release({device:'phone',token:next.token,message:'not saved'});
-    assert.equal(store.history('phone',20)[0].message,'preserve');
+    assert.equal(store.history('phone')[0].message,'preserve');
     assert.equal(store.history('phone',20).length,1);
   } finally {store.close();}
 });

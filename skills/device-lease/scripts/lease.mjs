@@ -76,23 +76,40 @@ export class LeaseStore {
           CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value INTEGER NOT NULL);
           PRAGMA user_version=1;
         `);
-      });
+      }, false);
     } catch (error) { this.db.close(); throw error; }
   }
   close() { this.db.close(); }
-  transaction(action) {
+  transaction(action, trackClock = true) {
     this.db.exec('BEGIN IMMEDIATE');
-    try { const result = action(); this.db.exec('COMMIT'); return result; }
-    catch (error) { this.db.exec('ROLLBACK'); throw error; }
+    try {
+      if (trackClock) this.reconcileClock();
+      // Keep a clock correction even if the requested action returns BUSY/LEASE_LOST.
+      // Otherwise repeated failed claims would keep pushing recovery out by another TTL.
+      this.db.exec('SAVEPOINT lease_action');
+      let result;
+      try { result = action(); }
+      catch (error) {
+        this.db.exec('ROLLBACK TO lease_action; RELEASE lease_action; COMMIT');
+        throw error;
+      }
+      this.db.exec('RELEASE lease_action; COMMIT');
+      return result;
+    } catch (error) {
+      try { this.db.exec('ROLLBACK'); } catch { /* Already committed, or SQLite aborted the transaction. */ }
+      throw error;
+    }
   }
-  now(write = false) {
+  reconcileClock() {
     const now = this.clock();
     const last = this.db.prepare("SELECT value FROM metadata WHERE key='last_clock'").get()?.value ?? 0;
-    const effective = Math.max(now, last);
-    this.clockWarning = now < last ? 'Host clock moved backwards; lease time is frozen until the clock catches up. Holders may still renew or release.' : null;
-    if (write) this.db.prepare("INSERT INTO metadata VALUES ('last_clock', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(effective);
-    return effective;
+    this.clockWarning = now < last ? 'Host clock moved backwards; remaining expiry was capped to one TTL on the corrected clock. Holders may renew or release.' : null;
+    if (now < last) this.db.prepare(`UPDATE leases SET expires_at=
+      CASE WHEN expires_at<=? THEN MIN(expires_at, ?) ELSE MIN(expires_at, ? + ttl_ms) END`).run(last, now, now);
+    this.db.prepare("INSERT INTO metadata VALUES ('last_clock', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(now);
+    this.operationNow = now;
   }
+  now() { return this.operationNow; }
   assertNoLegacy() {
     const { legacyLocks } = inspectRoot(this.root);
     if (legacyLocks.length) fail('LEGACY_STATE', 'Legacy lock files exist. Stop all old clients and follow the migration instructions.', { legacyLocks });
@@ -104,7 +121,7 @@ export class LeaseStore {
     return this.transaction(() => {
       // Fail closed even for stale legacy locks: old writers must be retired, not auto-migrated.
       this.assertNoLegacy();
-      const now = this.now(true);
+      const now = this.now();
       const current = this.row(device);
       if (current && now < current.expires_at) fail('BUSY', 'This device already has an active lease.', { holder: publicLease(current) });
       const token = randomBytes(32).toString('hex');
@@ -126,7 +143,7 @@ export class LeaseStore {
     if (message !== undefined) text(message, 'message');
     return this.transaction(() => {
       this.assertNoLegacy();
-      const now = this.now(true), row = this.owned(device, token, now);
+      const now = this.now(), row = this.owned(device, token, now);
       this.db.prepare('UPDATE leases SET last_activity_at=?, expires_at=?, message=? WHERE device=?')
         .run(now, now + row.ttl_ms, message ?? row.message, device);
       return { state: 'heartbeat', lease: publicLease(this.row(device)) };
@@ -135,14 +152,14 @@ export class LeaseStore {
   release({ device, token, message }) {
     if (message !== undefined) text(message, 'message');
     return this.transaction(() => {
-      const now = this.now(true), row = this.owned(device, token, now);
+      const now = this.now(), row = this.owned(device, token, now);
       if (message && this.historyLimit > 0) this.db.prepare('INSERT INTO handoffs(device,owner,message,at) VALUES (?,?,?,?)').run(device, row.owner, message, now);
       if (this.historyLimit > 0) this.db.prepare('DELETE FROM handoffs WHERE device=? AND id NOT IN (SELECT id FROM handoffs WHERE device=? ORDER BY id DESC LIMIT ?)').run(device, device, this.historyLimit);
       this.db.prepare('DELETE FROM leases WHERE device=?').run(device);
       return { state: 'released', device, message: message ?? null };
     });
   }
-  history(device, limit = this.historyLimit) {
+  history(device, limit = this.historyLimit || 20) {
     return this.db.prepare('SELECT device,owner,message,at FROM handoffs WHERE device=? ORDER BY id DESC LIMIT ?').all(device, limit);
   }
   status(device) {
